@@ -243,5 +243,32 @@ if __name__ == "__main__":
     flask_thread = threading.Thread(target=start_flask)
     flask_thread.daemon = True
     flask_thread.start()
-    
+  def get_video_formats(url):
+    import yt_dlp
+    ydl_opts = {'quiet': True, 'format': 'bestvideo+bestaudio/best'}
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            formats = info.get('formats', [])
+            available_formats = []
+            seen_res = set()
+            
+            for f in formats:
+                # নিশ্চিত করছি যে f একটি ডিকশনারি এবং এতে প্রয়োজনীয় তথ্য আছে
+                if isinstance(f, dict) and f.get('height') and f.get('filesize'):
+                    res = f.get('height')
+                    res_str = f"{res}p"
+                    if res_str not in seen_res:
+                        size_mb = round(f['filesize'] / (1024 * 1024), 1)
+                        available_formats.append({
+                            'type': 'video',
+                            'format_id': f['format_id'],
+                            'res': res_str,
+                            'size_str': f"{size_mb} MB"
+                        })
+                        seen_res.add(res_str)
+            return info.get('title', 'Video'), available_formats
+    except Exception as e:
+        print(f"Error: {e}")
+        return None, []  
     app.run()
