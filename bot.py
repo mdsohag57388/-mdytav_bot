@@ -7,13 +7,14 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from flask import Flask
 import threading
 
-# --- আপনার দেওয়া আসল ক্রেডেনশিয়ালস ---
+# --- আপনার স্ক্রিনশট থেকে নেওয়া আসল ক্রেডেনশিয়ালস ---
 API_ID = 30904664
 API_HASH = "723baa6fc4211fe0e73c79be091844f4"
 BOT_TOKEN = "8658096412:AAFEKv2qaJmkpbxdz5Lb_M09xBe2yC5l4Fw"
 # -----------------------------------------------
 
-app = Client("downloader_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+# ফিক্সড: সেশন নেম 'bot' হিসেবে দিয়ে সরাসরি বট টোকেন পাস করা হয়েছে
+app = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 if not os.path.exists("downloads"):
     os.makedirs("downloads")
@@ -73,7 +74,6 @@ def get_video_formats(url):
                         if not height:
                             continue
                             
-                        # স্ট্যান্ডার্ড ফরম্যাটে কনভার্ট করা (4K সহ)
                         if height <= 144: res_clean = '144p'
                         elif height <= 240: res_clean = '240p'
                         elif height <= 360: res_clean = '360p'
@@ -88,7 +88,6 @@ def get_video_formats(url):
                             size = f.get('filesize') or f.get('filesize_approx')
                             size_mb = round(size / (1024 * 1024), 2) if size else 0
                             
-                            # কম রেজোলিউশনে অডিও মার্জ করার দরকার নেই, ১০৮০পি বা তার উপরে বেস্ট অডিও মার্জ হবে
                             f_id = f.get('format_id')
                             if height >= 720:
                                 f_id = f"{f_id}+bestaudio/best"
@@ -108,10 +107,8 @@ def get_video_formats(url):
                                 asize_mb = round(asize / (1024 * 1024), 2)
                                 audio_format = f"{asize_mb} MB"
 
-            # রেজোলিউশন ছোট থেকে বড় সাজানো
             video_formats.sort(key=lambda x: x['res_num'])
             
-            # MP3 অডিও অপশন যোগ করা
             audio_size_str = audio_format if audio_format else "High Quality"
             video_formats.append({
                 'type': 'audio',
