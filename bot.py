@@ -7,14 +7,13 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from flask import Flask
 import threading
 
-# --- আপনার স্ক্রিনশট থেকে নেওয়া আসল ক্রেডেনশিয়ালস ---
-API_ID = 30904664
-API_HASH = "723baa6fc4211fe0e73c79be091844f4"
-BOT_TOKEN = "8658096412:AAFEKv2qaJmkpbxdz5Lb_M09xBe2yC5l4Fw"
-# -----------------------------------------------
+# --- সরাসরি সিস্টেম থেকে আইডি-হ্যাশ রিড করার ফিক্সড মেথড ---
+API_ID = int(os.environ.get("API_ID", 30904664))
+API_HASH = os.environ.get("API_HASH", "723baa6fc4211fe0e73c79be091844f4")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8658096412:AAFEKv2qaJmkpbxdz5Lb_M09xBe2yC5l4Fw")
+# -----------------------------------------------------
 
-# ফিক্সড: সেশন নেম 'bot' হিসেবে দিয়ে সরাসরি বট টোকেন পাস করা হয়েছে
-app = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 if not os.path.exists("downloads"):
     os.makedirs("downloads")
