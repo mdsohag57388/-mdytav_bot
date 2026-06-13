@@ -157,25 +157,18 @@ flask_app = Flask(__name__)
 @flask_app.route('/')
 def home():
     return "Bot is running!"
-def run_bot_in_background():
-    import asyncio
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    print("টেলিগ্রাম বট সফলভাবে ব্যাকগ্রাউন্ডে কানেক্টেড হচ্ছে...")
-    loop.run_until_complete(app.start())
-    
-    from pyrogram.methods.utilities.idle import idle
-    loop.run_until_complete(idle())
-
-if __name__ == "__main__":
-    # ১. প্রথমে টেলিগ্রাম বটকে সম্পূর্ণ আলাদা একটি ব্যাকগ্রাউন্ড থ্রেডে স্টার্ট করে দেওয়া হলো
-    import threading
-    bot_thread = threading.Thread(target=run_bot_in_background)
-    bot_thread.daemon = True
-    bot_thread.start()
-    
-    # ২. এবার মেইন থ্রেডে ফ্লাস্ক রান করবে, যাতে রেন্ডার সার্ভার কখনো ব্লক বা ক্র্যাশ না হয়
-    print("রেন্ডার পোর্ট সচল করার জন্য ফ্লাস্ক সার্ভার চালু হচ্ছে...")
+def start_flask():
+    print("রেন্ডার পোর্ট সচল করার জন্য ব্যাকগ্রাউন্ডে ফ্লাস্ক সার্ভার চালু হচ্ছে...")
     port = int(os.environ.get("PORT", 8080))
     flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
+
+if __name__ == "__main__":
+    # ১. প্রথমে ফ্লাস্ক সার্ভারকে একটি আলাদা ব্যাকগ্রাউন্ড থ্রেডে রান করানো হলো
+    import threading
+    flask_thread = threading.Thread(target=start_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # ২. এবার মেইন থ্রেডে সরাসরি বটের নিজস্ব রানিং মেথড চালু করা হলো
+    print("টেলিগ্রাম বট মেইন মোডে সচল হচ্ছে...")
+    app.run()
