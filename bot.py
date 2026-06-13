@@ -7,7 +7,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from flask import Flask
 import threading
 
-# --- আপনার টেলিগ্রাম এপিআই ডিটেইলস ---
+# --- আপনার দেওয়া আসল টেলিগ্রাম এপিআই ডিটেইলস ---
 API_ID = 30904664
 API_HASH = "723baa6fc4211fe0e73c79be091844f4"
 BOT_TOKEN = "8658096412:AAFEKv2qaJmkpbxdz5Lb_M09xBe2yC5l4Fw"
@@ -66,46 +66,50 @@ def get_video_formats(url):
             audio_format = None
             seen_resolutions = set()
             
+            # সম্ভাব্য সব রেজোলিউশন লিস্ট (144p থেকে 4K/2160p পর্যন্ত)
+            target_resolutions = ['144p', '240p', '360p', '480p', '720p', '1080p', '1440p', '2160p']
+            
             if 'formats' in info:
                 for f in info['formats']:
                     if isinstance(f, dict):
-                        # রেজোলিউশন বের করা
-                        res_str = f.get('format_note') or f.get('resolution')
-                        if res_str and ('p' in str(res_str) or res_str.isdigit()):
-                            res_clean = str(res_str).split(' ')[0]
-                            if 'p' not in res_clean:
-                                res_clean += 'p'
+                        height = f.get('height')
+                        if not height:
+                            continue
                             
-                            # ডুপ্লিকেট এড়ানো এবং শুধু ভিডিও ফিল্টার করা
-                            if res_clean not in seen_resolutions and f.get('vcodec') != 'none':
-                                size = f.get('filesize') or f.get('filesize_approx')
-                                size_mb = round(size / (1024 * 1024), 2) if size else 0
-                                
-                                seen_resolutions.add(res_clean)
-                                video_formats.append({
-                                    'type': 'video',
-                                    'format_id': f.get('format_id'),
-                                    'res': f"🎬 {res_clean}",
-                                    'size_str': f"{size_mb} MB" if size_mb else "Best"
-                                })
+                        # হাইট অনুযায়ী স্ট্যান্ডার্ড রেজোলিউশন ট্যাগ দেওয়া
+                        if height <= 144: res_clean = '144p'
+                        elif height <= 240: res_clean = '240p'
+                        elif height <= 360: res_clean = '360p'
+                        elif height <= 480: res_clean = '480p'
+                        elif height <= 720: res_clean = '720p'
+                        elif height <= 1080: res_clean = '1080p'
+                        elif height <= 1440: res_clean = '1440p'
+                        else: res_clean = '2160p' # 4K
                         
-                        # বেস্ট অডিও সাইজ বের করার চেষ্টা
+                        # প্রতি রেজোলিউশনের বেস্ট কোয়ালিটি ফিল্টার করা
+                        if res_clean not in seen_resolutions and f.get('vcodec') != 'none':
+                            size = f.get('filesize') or f.get('filesize_approx')
+                            size_mb = round(size / (1024 * 1024), 2) if size else 0
+                            
+                            seen_resolutions.add(res_clean)
+                            video_formats.append({
+                                'type': 'video',
+                                'format_id': f.get('format_id') if res_clean in ['144p','240p','360p','480p'] else f"{f.get('format_id')}+bestaudio",
+                                'res': f"🎬 {res_clean}",
+                                'size_str': f"{size_mb} MB" if size_mb else "Best",
+                                'res_num': height
+                            })
+                        
                         if f.get('acodec') != 'none' and f.get('vcodec') == 'none':
                             asize = f.get('filesize') or f.get('filesize_approx')
                             if asize:
                                 asize_mb = round(asize / (1024 * 1024), 2)
                                 audio_format = f"{asize_mb} MB"
 
-            # রেজোলিউশন অনুযায়ী ছোট থেকে বড় সাজানো (144p, 240p, 720p, 1080p...)
-            def get_res_num(x):
-                try:
-                    return int(''.join(filter(str.isdigit, x['res'])))
-                except:
-                    return 0
+            # রেজোলিউশন ছোট থেকে বড় আকারে সাজানো
+            video_formats.sort(key=lambda x: x['res_num'])
             
-            video_formats.sort(key=get_res_num)
-            
-            # অডিও অপশনটি সবার শেষে যোগ করা
+            # অডিও অপশন যুক্ত করা
             audio_size_str = audio_format if audio_format else "High Quality"
             video_formats.append({
                 'type': 'audio',
@@ -125,7 +129,7 @@ async def handle_message(client, message):
         await message.reply_text("দয়া করে একটি সঠিক ভিডিও লিংক পাঠান।")
         return
 
-    msg = await message.reply_text("⚡ স্পীডチェッキング चालू হচ্ছে...")
+    msg = await message.reply_text("⚡ স্পীড চেকিং চালু হচ্ছে...")
     title, formats = get_video_formats(url)
     
     if isinstance(formats, str) or not formats:
@@ -136,31 +140,30 @@ async def handle_message(client, message):
             await msg.edit_text(f"❌ এরর: {error_msg}")
         return
 
-    # স্ক্রিনশটের মতো পাশাপাশি ২ কলামের গ্রিড বাটন তৈরি করার লজিক
     buttons = []
     row = []
     
     for f in formats:
         callback_data = f"{f['type']}|{f['format_id']}|{url}"
         if len(callback_data) > 64:
-            continue
+            # যদি কাস্টম ফরম্যাট আইডি বেশি বড় হয়ে যায়, সেভ সাইড হিসেবে বেস্ট ফরম্যাট ব্যাকআপ রাখা
+            callback_data = f"{f['type']}|best|{url}"
             
         button_text = f"{f['res']} - {f['size_str']}"
         btn = InlineKeyboardButton(button_text, callback_data=callback_data)
         
         if f['type'] == 'audio':
-            # অডিও বাটনটি যদি জোড় সংখ্যার কারণে আটকে থাকে, তবে আগের রো পুশ করে অডিওটি ফুল সিঙ্গেল লাইনে দেব
             if row:
                 buttons.append(row)
                 row = []
             buttons.append([btn])
         else:
             row.append(btn)
-            if len(row) == 2:  # প্রতি লাইনে ২টি করে বাটন বসবে
+            if len(row) == 2:  # সুন্দর গ্রিড লেআউট (পাশাপাশি দুটি বাটন)
                 buttons.append(row)
                 row = []
                 
-    if row:  # যদি কোনো বিজোড় বাটন বাকি থাকে
+    if row:
         buttons.append(row)
 
     if not buttons:
@@ -195,7 +198,7 @@ async def handle_download(client, callback_query):
         }
     else:
         ydl_opts = {
-            'format': f"{format_id}+bestaudio/best",
+            'format': format_id if format_id != 'best' else 'bestvideo+bestaudio/best',
             'outtmpl': "downloads/%(title)s_video.%(ext)s",
             'quiet': True,
             'merge_output_format': 'mp4'
