@@ -157,34 +157,25 @@ flask_app = Flask(__name__)
 @flask_app.route('/')
 def home():
     return "Bot is running!"
-
-def run_flask():
-    import threading
-    port = int(os.environ.get("PORT", 8080))
-    flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
-
-async def start_services():
-    print("বটটি সুপারফাস্ট মোডে চালু হচ্ছে...")
+def run_bot_in_background():
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     
-    # ব্যাকগ্রাউন্ডে ফ্লাস্ক সার্ভার চালু করা হচ্ছে (থ্রেডকে সম্পূর্ণ আলাদা রাখা হলো)
-    import threading
-    t = threading.Thread(target=run_flask)
-    t.daemon = True
-    t.start()
-    
-    # এবার মূল টেলিগ্রাম বটকে রান করানো এবং সচল রাখা
-    await app.start()
-    print("টেলিগ্রাম বট সফলভাবে কানেক্টেড!")
+    print("টেলিগ্রাম বট সফলভাবে ব্যাকগ্রাউন্ডে কানেক্টেড হচ্ছে...")
+    loop.run_until_complete(app.start())
     
     from pyrogram.methods.utilities.idle import idle
-    await idle()
-    
-    # বট বন্ধ হলে কানেকশন ডিসকানেক্ট করবে
-    await app.stop()
+    loop.run_until_complete(idle())
 
 if __name__ == "__main__":
-    import asyncio
-    try:
-        asyncio.run(start_services())
-    except KeyboardInterrupt:
-        print("বটটি বন্ধ করা হয়েছে।")
+    # ১. প্রথমে টেলিগ্রাম বটকে সম্পূর্ণ আলাদা একটি ব্যাকগ্রাউন্ড থ্রেডে স্টার্ট করে দেওয়া হলো
+    import threading
+    bot_thread = threading.Thread(target=run_bot_in_background)
+    bot_thread.daemon = True
+    bot_thread.start()
+    
+    # ২. এবার মেইন থ্রেডে ফ্লাস্ক রান করবে, যাতে রেন্ডার সার্ভার কখনো ব্লক বা ক্র্যাশ না হয়
+    print("রেন্ডার পোর্ট সচল করার জন্য ফ্লাস্ক সার্ভার চালু হচ্ছে...")
+    port = int(os.environ.get("PORT", 8080))
+    flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
