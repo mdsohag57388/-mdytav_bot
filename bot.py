@@ -147,7 +147,7 @@ async def handle_download(client, callback_query):
         await status_msg.edit_text(f"❌ একটি ভুল হয়েছে: {str(e)}")
 
 print("বটটি সুপারফাস্ট মোডে চালু হয়েছে...")
-app.run()
+
 from flask import Flask
 import threading
 import os
