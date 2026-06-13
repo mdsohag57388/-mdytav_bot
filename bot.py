@@ -152,14 +152,26 @@ from flask import Flask
 import threading
 import os
 
-app = Flask('')
+flask_app = Flask(__name__)
 
-@app.route('/')
+@flask_app.route('/')
 def home():
     return "Bot is running!"
 
-def run():
+async def start_services():
+    print("বটটি সুপারফাস্ট মোডে চালু হচ্ছে...")
+    await app.start()
+    print("টেলিগ্রাম বট সফলভাবে কানেক্টেড!")
+    
+    import threading
     port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    flask_thread = threading.Thread(target=lambda: flask_app.run(host="0.0.0.0", port=port, use_reloader=False))
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    from pyrogram.methods.utilities.idle import idle
+    await idle()
 
-threading.Thread(target=run).start()
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(start_services())
