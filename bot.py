@@ -158,20 +158,33 @@ flask_app = Flask(__name__)
 def home():
     return "Bot is running!"
 
+def run_flask():
+    import threading
+    port = int(os.environ.get("PORT", 8080))
+    flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
+
 async def start_services():
     print("বটটি সুপারফাস্ট মোডে চালু হচ্ছে...")
+    
+    # ব্যাকগ্রাউন্ডে ফ্লাস্ক সার্ভার চালু করা হচ্ছে (থ্রেডকে সম্পূর্ণ আলাদা রাখা হলো)
+    import threading
+    t = threading.Thread(target=run_flask)
+    t.daemon = True
+    t.start()
+    
+    # এবার মূল টেলিগ্রাম বটকে রান করানো এবং সচল রাখা
     await app.start()
     print("টেলিগ্রাম বট সফলভাবে কানেক্টেড!")
     
-    import threading
-    port = int(os.environ.get("PORT", 8080))
-    flask_thread = threading.Thread(target=lambda: flask_app.run(host="0.0.0.0", port=port, use_reloader=False))
-    flask_thread.daemon = True
-    flask_thread.start()
-    
     from pyrogram.methods.utilities.idle import idle
     await idle()
+    
+    # বট বন্ধ হলে কানেকশন ডিসকানেক্ট করবে
+    await app.stop()
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(start_services())
+    try:
+        asyncio.run(start_services())
+    except KeyboardInterrupt:
+        print("বটটি বন্ধ করা হয়েছে।")
